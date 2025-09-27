@@ -1,0 +1,183 @@
+{
+  "meta": {
+    "version": "2025-09-26",
+    "last_updated": "2025-09-26T23:50:00+09:00",
+    "source_of_truth": "docs/carelog-canon.json"
+  },
+  "rules": {
+    "responses": "必ず UPDATE / MARGE を明記する",
+    "frontend_contract": "src/lib/contracts.ts にテーブル/ビュー/ルート名など契約文字列を一元管理し、直書きを避ける",
+    "morning": "毎朝 canon.json の変更があった場合のみ差分を共有して開始する",
+    "file_reference_policy": {
+      "no_guess": true,
+      "unclear_target": "grep 等で検索してユーザーに確認する",
+      "explicit_provenance": ["bundle確認済み", "検索結果ベース"],
+      "no_unapproved_names": true
+    },
+    "bundle_reference": "CARELOG-PUBLIC リポジトリの CARELOG_SUMMARY.md （実体は raw.githubusercontent URL で参照）",
+    "responsibility_separation": {
+      "ui_component": "supabase 直接呼び出しや router ガード相当を埋め込まない",
+      "auth": "Pinia store (auth.ts) が責務",
+      "routing": "router / main.ts が責務",
+      "ai_refusal": "責務を越える実装依頼には同調せず拒絶"
+    },
+    "progress_json": {
+      "daily_export": true,
+      "structure": "日付ごとにトップレベルキーを設け積み上げ保存",
+      "machine_oriented": true,
+      "delivery": "リンク形式（即保存必須・期限あり）",
+      "purpose": "セッション記憶の引き継ぎ"
+    }
+  },
+  "naming": {
+    "branch": "事業所",
+    "staff": "スタッフ",
+    "user": "サービス利用者",
+    "forbidden": ["participant"]
+  },
+  "tables": {
+    "staffs": {},
+    "users": {
+      "columns": { "kana": "text (nullable)" }
+    },
+    "branches": {},
+    "care_logs": {
+      "defaults": {
+        "title": "（無題）",
+        "content": "（未入力）"
+      },
+      "constraints": [
+        "NOT NULL (title, content)",
+        "FK user_id → users.id ON DELETE SET NULL"
+      ]
+    },
+    "care_log_revisions": {},
+    "staff_branch_memberships": {
+      "role": "スタッフと拠点の多対多中間テーブル",
+      "constraints": [
+        "UNIQUE(staff_id, branch_id)",
+        "FK staff_id → staffs.id ON DELETE CASCADE",
+        "FK branch_id → branches.id ON DELETE CASCADE"
+      ],
+      "rls": {
+        "select": "同一 company のみ閲覧可",
+        "mutate": "role ∈ {admin, manager} のスタッフのみ"
+      }
+    },
+    "user_branch_memberships": {
+      "role": "利用者と拠点の多対多中間テーブル",
+      "constraints": [
+        "UNIQUE(user_id, branch_id)",
+        "FK user_id → users.id ON DELETE CASCADE",
+        "FK branch_id → branches.id ON DELETE CASCADE"
+      ],
+      "rls": {
+        "select": "同一 company のみ閲覧可",
+        "mutate": "role ∈ {admin, manager} のスタッフのみ"
+      }
+    }
+  },
+  "views": {
+    "v_user_with_branches": {},
+    "v_staff_with_branches": {
+      "note": "スタッフ1=1行、branch_ids / branch_names / branches_json を集約"
+    }
+  },
+  "rls": {
+    "principle": "company_id による絞り込み",
+    "boundary": "branches.company_id を起点",
+    "admins": "role='admin' は branch_id 未所持のケースあり（後日対応）",
+    "policy_function": "care.fn_is_branch_in_my_companies(branch_id uuid)"
+  },
+  "routes": {
+    "users": ["user-list", "user-detail", "user-edit", "user-new"],
+    "staffs": ["staff-list", "staff-detail", "staff-edit", "staff-new"]
+  },
+  "dev_rules": {
+    "schema_changes": {
+      "new_or_change": "MARGE",
+      "minor_fix": "UPDATE"
+    },
+    "fq_table_view": "当面利用しない（参照は fq.table() / fq.view()）"
+  },
+  "git_rules": {
+    "before_push": [
+      "git fetch origin",
+      "git rebase origin/main"
+    ]
+  },
+  "ai_interaction": {
+    "proposal": "canon.json に追記すべき差分案を必ず提示",
+    "user_role": "ユーザーがOKなら canon.json に反映・コミット",
+    "goal": "記録と実装のズレ最小化"
+  },
+  "canon_diff_flow": {
+    "morning_check": true,
+    "steps": [
+      "git switch main && git pull --ff-only",
+      "git diff / VS Code Timeline で差分精読",
+      "必要なら修正コミット prefix=canon:",
+      "レビュー完了タグ canon-reviewed-YYYY-MM-DD を push"
+    ]
+  },
+  "edge_functions": {
+    "admin-sync-auth": {
+      "verify_jwt": false,
+      "manual_check": ["auth.getUser()", "role=admin or manager"],
+      "reason": "CORS プリフライトは JWT を持たないため"
+    }
+  },
+  "history": [
+    {
+      "date": "2025-09-25",
+      "type": "MARGE",
+      "content": "care_logs に DEFAULT と NOT NULL を追加"
+    },
+    {
+      "date": "2025-09-25",
+      "type": "MARGE",
+      "content": "care_logs.user_id を ON DELETE SET NULL に変更、インデックス追加"
+    },
+    {
+      "date": "2025-09-25",
+      "type": "MARGE",
+      "content": "staff_branch_memberships / user_branch_memberships に外部キー制約と UNIQUE を正式仕様として明記"
+    },
+    {
+      "date": "2025-09-25",
+      "type": "UPDATE",
+      "content": "削除された利用者に紐づく過去ログは user_id=NULL で保持と明記"
+    },
+    {
+      "date": "2025-09-26",
+      "type": "UPDATE",
+      "content": "progress.json の扱いを運用ルールに正式追加"
+    }
+  ],
+  "ai_collaboration": {
+    "source_reference_rules": {
+      "description": "CARELOG-PUBLIC を基点に、AI が自律的に最新コードを参照するためのルール",
+      "manifest_file": "_chatgpt/manifest.json",
+      "bundle_files": [
+        "_chatgpt/summary/INDEX.md",
+        "_chatgpt/summary/**",
+        "CARELOG_SUMMARY.md (nightly only)"
+      ],
+      "raw_url_rule": "https://raw.githubusercontent.com/seig-o/CARELOG-PUBLIC/<commit>/<path>",
+      "assistant_must": [
+        "ユーザーが『bundleを参考に修正をアドバイスして』と指示した場合、まず _chatgpt/manifest.json を読み、対象ファイルの commit 固定 raw URL を解決する。",
+        "manifest に該当パスがあれば、その raw URL を用いて内容を参照し、修正提案を行う。",
+        "manifest に無い場合は、直近 push が反映されていない可能性を考慮して『push 済みか / CI の完了を待つ』確認を行う（ユーザーに URL 貼付を要求しない）。",
+        "CARELOG_SUMMARY.md は夜間スナップショットのため日中は差分サマリ（_chatgpt/summary/**）を優先参照する。"
+      ],
+      "assistant_must_not": [
+        "manifest.json が存在する状況で、ユーザーに毎回 raw URL の貼付を求めない。",
+        "bundle を参照したと宣言しながら、実際にはファイル本文を未確認のまま提案しない。"
+      ],
+      "fallback_flow": [
+        "manifest.json が見当たらない/壊れている → ユーザーに main へ再 push と CI 通過の確認を依頼する。",
+        "それでも不可の場合のみ、一時的に対象ファイルの raw URL をユーザーに依頼する。"
+      ]
+    }
+  }
+}
