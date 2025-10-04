@@ -1,0 +1,13 @@
+.env
+.env.*
+.supabase
+node_modules
+dist
+build
+coverage
+.snapshots
+.git
+.github/workflows/**   # ← これ重要
+**/*.key
+**/*.pem
+**/*secret*
