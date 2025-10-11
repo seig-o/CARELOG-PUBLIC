@@ -1,0 +1,507 @@
+[
+  {
+    "date": "2025-09-28T22:40:00+09:00",
+    "type": "UPDATE",
+    "content": {
+      "frontend_changes": [
+        "UserUpsert: role フィールドを削除。name/email/kana 等の実データ主体に整理",
+        "UserDetail: role 表示を削除。Descriptions/Empty を用いて読みやすく再構成",
+        "StaffList: 操作列の n-button を文字列タグ呼び出しから Router 遷移に統一（detail/edit 正常動作）",
+        "BranchDetail: 画面新設。id/name/company_id/status/created_at/updated_at を表示。Popconfirm で削除対応",
+        "BranchUpsert: company_id/status/phone/address/note を編集可能に拡張（メタ情報は読み取り表示）",
+        "CareLogUpsert: 日付の相互変換は共通関数利用方針に切替（utils/date.ts; 後述）",
+        "AppHeader: ガード/判定は保持せず UI 専任。logout は auth.logout() を呼ぶのみ（遷移は router.replace('login')）"
+      ],
+      "routing": [
+        "branches に detail ルートを追加: { path: '/branch/:id', name: 'branch-detail' }",
+        "一覧/新規/詳細/編集の命名を ROUTE（contracts）に統一参照"
+      ],
+      "ui_components": {
+        "naive_ui_globals": [
+          "NDescriptions / NDescriptionsItem / NEmpty / NSpin / NPopconfirm / NTag を main.ts に登録"
+        ]
+      },
+      "db_changes": [
+        "ALTER TABLE branches ADD COLUMN status text DEFAULT 'active';",
+        "（任意拡張）branches に phone/address/note を追加可能: text 型",
+        "既存行の status を既定に揃える場合: UPDATE branches SET status='active' WHERE status IS NULL;"
+      ],
+      "contracts": {
+        "ROUTE.branches.name": ["list", "new", "detail", "edit"],
+        "notes_ja": "TABLE 参照で branches/users/staffs/care_logs を一元化（直書き文字列の削減）"
+      },
+      "utilities": {
+        "utils/date.ts": [
+          "toJstYmd(ms:number|null): string|null",
+          "ymdToUtcMs(ymd:string|null): number|null"
+        ],
+        "purpose": "NDatePicker（ms）と DB（date/text-YYYY-MM-DD）の相互変換を全画面で共通化"
+      },
+      "policies_notes": [
+        "AppHeader は UI 専任。認証ガードは router / store 側の責務に固定（責務分離）",
+        "RLS は最小構成を維持（本日コード変更なし）。明日、superadmin で companies 全件可視を実機確認予定"
+      ],
+      "tests": [
+        "拠点一覧 → 詳細 → 編集 への遷移が成功すること",
+        "BranchUpsert で status/phone/address/note を保存し、BranchDetail に反映されること",
+        "ログアウト押下でセッション破棄→ /login にとどまること（AppHeader は logout→router.replace('login') のみ）"
+      ]
+    }
+  },
+  {
+    "date": "2025-09-28T13:17:12+09:00",
+    "label": "更新(訂正)",
+    "content": {
+      "area": "dev_rules",
+      "key": "canon_delta_timestamp_policy",
+      "change": "運用是正",
+      "before": "CANON-DELTAのdateを手入力で丸めて記録してしまうことがあった",
+      "after": {
+        "rule": "dateは毎回、出力直前のJST実時計（Asia/Tokyo）をそのままISO8601で記録する。丸め・手入力は禁止。",
+        "multi_entry": "同一秒内は後続を+1秒して単調増加を保証",
+        "user_override": "ユーザーが基準時刻を指定した場合はその値を最優先"
+      },
+      "reason": "未来時刻混入の再発防止と時系列の一貫性担保のため。"
+    }
+  },
+  {
+    "date": "2025-09-28T13:45:00+09:00",
+    "label": "更新",
+    "content": {
+      "area": "frontend",
+      "key": "UserUpsert.vue/select_columns",
+      "change": "修正",
+      "before": "users から id,name,email,role を取得し 400",
+      "after": "users から id,name,email,status,created_at,kana を取得（role は取得しない）",
+      "reason": "role は staffs 側の属性であり、users には存在しないため。"
+    }
+  },
+  {
+    "date": "2025-09-28T13:10:00+09:00",
+    "label": "決定",
+    "content": {
+      "area": "dev_rules",
+      "key": "canon_vs_memory_roles",
+      "change": "追加",
+      "after": {
+        "canon.json": "プロジェクトの唯一の正 (Source of Truth)。作業経過・合意内容・仕様変更を時系列で追記し、双方で確認・共有する公式記録。",
+        "記憶.json": "AIが会話をまたいで状況を正しく把握するためのスタック型ログ。canon.jsonを編集する前段階の素材や、AI視点で必要な補助情報を含めても良い。"
+      },
+      "reason": "二重管理の役割分担を明確化し、混乱を避けるため。"
+    }
+  },
+  {
+    "date": "2025-09-28T12:50:00+09:00",
+    "label": "決定",
+    "content": {
+      "area": "dev_rules",
+      "key": "canon_delta_timestamp_policy",
+      "change": "追加",
+      "after": {
+        "rule": "CANON-DELTAのdateは出力時点の実時計（Asia/Tokyo）で記録する。丸めや手入力は禁止。",
+        "format": "ISO8601（例: 2025-09-28T12:50:00+09:00）",
+        "multi_entry": "同一秒に複数エントリがある場合は+1秒ずつ加算し単調増加を保証"
+      },
+      "reason": "手入力丸めにより未来日時が混入する不具合が発生したため。今後は常に実時計を正とする。"
+    }
+  },
+  {
+    "date": "2025-09-28T11:40:00+09:00",
+    "label": "新規",
+    "content": {
+      "area": "frontend",
+      "key": "date_utils/lib_date_ts",
+      "change": "追加",
+      "after": {
+        "file": "src/lib/date.ts",
+        "apis": ["ymdStringToMs(YYYY-MM-DD→ms)", "msToYmdString(ms→YYYY-MM-DD)", "toYmd(mixed→YYYY-MM-DD)"],
+        "policy": "UTC系API（toISOString/getUTC*）を日付I/Oに使用しない。care_logs.dateは常に'YYYY-MM-DD'で送受信。"
+      },
+      "reason": "タイムゾーン起因の前日化不具合の横断解消と共通化。"
+    }
+  },
+  {
+    "date": "2025-09-28T11:55:00+09:00",
+    "label": "決定",
+    "content": {
+      "area": "rls",
+      "key": "minimal_profile_v1",
+      "change": "追加",
+      "after": {
+        "read": "auth.uid() != null なら全テーブル SELECT 可（全件）",
+        "write": "staffs.role ∈ {'admin','manager'} のみ INSERT/UPDATE/DELETE 可",
+        "helper_fn": "public.fn_is_admin()",
+        "deprecated": "会社/拠点境界の細粒度RLSは当面停止。必要時に段階的復活。"
+      },
+      "reason": "複雑RLSを排除し、まずフロント全体を気持ちよく通電させるため。"
+    }
+  },
+  {
+    "date": "2025-09-28T11:30:00+09:00",
+    "label": "決定",
+    "content": {
+      "area": "history_policy",
+      "key": "immutability",
+      "change": "追加",
+      "after": "過去の canon.json 記録は改変しない。新規は追記のみで扱う。",
+      "reason": "履歴の完全性を担保し、解釈起因の欠損を防ぐため。"
+    }
+  },
+  {
+    "date": "2025-09-28T11:30:10+09:00",
+    "label": "決定",
+    "content": {
+      "area": "canon_diff_flow",
+      "key": "daily_delta_protocol",
+      "change": "追加",
+      "after": {
+        "end_of_day_output": true,
+        "milestone_deltas": true,
+        "delta_format": {
+          "date": "ISO8601(+09:00)",
+          "label": "新規|更新|削除|注記|決定",
+          "content": {
+            "area": "rls|tables|views|routes|edge_functions|dev_rules|ai_response_policy|naming|history|note",
+            "key": "対象キー（例: rls.policy_function / tables.staffs.columns.company_id）",
+            "change": "追加|変更|削除",
+            "before": "(任意)",
+            "after": "(JSON断片可)",
+            "reason": "1〜2行"
+          }
+        }
+      },
+      "reason": "終業時の一括追記を高精度化し、節目での即時ログで漏れを防ぐ。"
+    }
+  },
+  {
+    "date": "2025-09-28T11:30:20+09:00",
+    "label": "決定",
+    "content": {
+      "area": "rules",
+      "key": "conflict_resolution",
+      "change": "追加",
+      "after": {
+        "merge_strategy": "まず情報をマージ",
+        "tie_breaker": "衝突は新しい方（後の日付）を正とする"
+      },
+      "reason": "プロジェクト進行に伴う競合の自然発生に対処する統一ルール。"
+    }
+  },
+  {
+    "date": "2025-09-28T11:30:30+09:00",
+    "label": "注記",
+    "content": {
+      "area": "note",
+      "key": "chatgpt_folders_effect",
+      "change": "追加",
+      "after": "ChatGPTデスクトップアプリのフォルダ位置（最上層/特定フォルダ）は会話品質や履歴保持に影響しない。",
+      "reason": "本日のスレッド開始場所誤りに関する確認結果の記録。"
+    }
+  },
+  {
+    "date": "2025-09-27T23:59:40+09:00",
+    "label": "新規",
+    "content": {
+      "invariants": [
+        "RLS判定は can_read_company(company_id) / can_read_branch(branch_id) に限定し、相互再帰なし。",
+        "フロントのセレクトはそのまま使い、権限外はRLSで自然除外。",
+        "ポリシー本文で branches を再参照しない（判定は関数側で完結）。"
+      ]
+    }
+  },
+  {
+    "date": "2025-09-27T23:59:30+09:00",
+    "label": "新規",
+    "content": {
+      "frontend_contracts": {
+        "routes": {
+          "branches": { "list": "/branch/list", "new": "/branch/new", "detail": "/branch/:id", "edit": "/branch/:id/edit" },
+          "careLogs": { "list": "/care-log/list", "new": "/care-log/new", "detail": "/care-log/:id", "edit": "/care-log/:id/edit" },
+          "companies": { "list": "/company/list", "new": "/company/new", "detail": "/company/:id", "edit": "/company/:id/edit" }
+        }
+      }
+    }
+  },
+  {
+    "date": "2025-09-27T23:59:20+09:00",
+    "label": "新規",
+    "content": {
+      "rls_impl_additions": {
+        "branches": [
+          { "name": "branches_select", "cmd": "select", "using": "can_read_branch(id)" },
+          { "name": "branches_write",  "cmd": "insert", "with_check": "can_read_company(company_id)" },
+          { "name": "branches_update", "cmd": "update", "using": "can_read_branch(id)", "with_check": "can_read_branch(id)" },
+          { "name": "branches_delete", "cmd": "delete", "using": "can_read_branch(id)" }
+        ],
+        "care_logs": [
+          { "name": "care_logs_select", "cmd": "select", "using": "can_read_branch(branch_id)" },
+          { "name": "care_logs_insert", "cmd": "insert", "with_check": "can_read_branch(branch_id)" },
+          { "name": "care_logs_update", "cmd": "update", "using": "can_read_branch(branch_id)", "with_check": "can_read_branch(branch_id)" },
+          { "name": "care_logs_delete", "cmd": "delete", "using": "can_read_branch(branch_id)" }
+        ],
+        "users": [
+          {
+            "name": "users_select",
+            "cmd": "select",
+            "using": "EXISTS (SELECT 1 FROM public.user_branch_memberships ub WHERE ub.user_id = users.id AND can_read_branch(ub.branch_id)) OR fn_is_superadmin(auth.uid())"
+          }
+        ],
+        "staffs": [
+          {
+            "name": "staffs_select",
+            "cmd": "select",
+            "using": "(auth.uid() = staffs.auth_user_id) OR EXISTS (SELECT 1 FROM public.staff_branch_memberships sb WHERE sb.staff_id = staffs.id AND can_read_branch(sb.branch_id)) OR fn_is_superadmin(auth.uid())"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "date": "2025-09-27T23:59:10+09:00",
+    "label": "更新",
+    "content": {
+      "rls": {
+        "policy_functions": [
+          "public.can_read_company(company_id uuid)",
+          "public.can_read_branch(branch_id uuid)",
+          "public.fn_is_superadmin(uid uuid)"
+        ],
+        "deprecations": [
+          "public.fn_user_can_read_company(company_id uuid) は非推奨（互換のため当面残置可、将来削除）"
+        ]
+      }
+    }
+  },
+  {
+    "date": "2025-09-27T15:30:00+09:00",
+    "label": "新規",
+    "content": {
+      "ai_response_policy": {
+        "no_faithful_tone": "「誠実そうな回答」を禁止。AIは事実・差分・検証可能な情報のみを返す。",
+        "no_human_pleasing": "人間を喜ばせようと寄せる回答傾向を禁止。判断を誤らせる可能性があるため。",
+        "style": "常に中立・即物的・構造的。感情的保証表現や過度な共感表現は禁止。"
+      }
+    }
+  },
+  {
+    "date": "2025-09-27T23:59:00+09:00",
+    "label": "新規(スナップショット識別)",
+    "content_ref": "前エントリ(meta/rules/…全体)に date/label が無かったため識別子を追加。元エントリは残置。",
+    "meta": {
+      "version": "2025-09-26",
+      "last_updated": "2025-09-27T23:59:00+09:00",
+      "source_of_truth": "docs/carelog-canon.json"
+    },
+    "rules": {
+      "responses": "必ず UPDATE / MARGE を明記する",
+      "frontend_contract": "src/lib/contracts.ts にテーブル/ビュー/ルート名など契約文字列を一元管理し、直書きを避ける",
+      "morning": "毎朝 canon.json の変更があった場合のみ差分を共有して開始する",
+      "file_reference_policy": {
+        "no_guess": true,
+        "unclear_target": "grep 等で検索してユーザーに確認する",
+        "explicit_provenance": [
+          "bundle確認済み",
+          "検索結果ベース"
+        ],
+        "no_unapproved_names": true
+      },
+      "bundle_reference": "CARELOG-PUBLIC リポジトリの CARELOG_SUMMARY.md （実体は raw.githubusercontent URL で参照）",
+      "responsibility_separation": {
+        "ui_component": "supabase 直接呼び出しや router ガード相当を埋め込まない",
+        "auth": "Pinia store (auth.ts) が責務",
+        "routing": "router / main.ts が責務",
+        "ai_refusal": "責務を越える実装依頼には同調せず拒絶"
+      },
+      "progress_json": {
+        "daily_export": true,
+        "structure": "日付ごとにトップレベルキーを設け積み上げ保存",
+        "machine_oriented": true,
+        "delivery": "リンク形式（即保存必須・期限あり）",
+        "purpose": "セッション記憶の引き継ぎ"
+      }
+    },
+    "naming": {
+      "branch": "事業所",
+      "staff": "スタッフ",
+      "user": "サービス利用者",
+      "forbidden": [
+        "participant"
+      ]
+    },
+    "tables": {
+      "staffs": {},
+      "users": {
+        "columns": {
+          "kana": "text (nullable)"
+        }
+      },
+      "branches": {},
+      "care_logs": {
+        "defaults": {
+          "title": "（無題）",
+          "content": "（未入力）"
+        },
+        "constraints": [
+          "NOT NULL (title, content)",
+          "FK user_id → users.id ON DELETE SET NULL"
+        ]
+      },
+      "care_log_revisions": {},
+      "staff_branch_memberships": {
+        "role": "スタッフと拠点の多対多中間テーブル",
+        "constraints": [
+          "UNIQUE(staff_id, branch_id)",
+          "FK staff_id → staffs.id ON DELETE CASCADE",
+          "FK branch_id → branches.id ON DELETE CASCADE"
+        ],
+        "rls": {
+          "select": "同一 company のみ閲覧可",
+          "mutate": "role ∈ {admin, manager} のスタッフのみ"
+        }
+      },
+      "user_branch_memberships": {
+        "role": "利用者と拠点の多対多中間テーブル",
+        "constraints": [
+          "UNIQUE(user_id, branch_id)",
+          "FK user_id → users.id ON DELETE CASCADE",
+          "FK branch_id → branches.id ON DELETE CASCADE"
+        ],
+        "rls": {
+          "select": "同一 company のみ閲覧可",
+          "mutate": "role ∈ {admin, manager} のスタッフのみ"
+        }
+      }
+    },
+    "views": {
+      "v_user_with_branches": {},
+      "v_staff_with_branches": {
+        "note": "スタッフ1=1行、branch_ids / branch_names / branches_json を集約"
+      }
+    },
+    "rls": {
+      "principle": "company_id による絞り込み",
+      "boundary": "branches.company_id を起点",
+      "admins": "role='admin' は branch_id 未所持のケースあり（将来は staffs.company_id などで補強）",
+      "policy_function": "public.fn_user_can_read_company(company_id uuid)",
+      "branch_visibility": {
+        "superadmin": "全ブランチ可視（全件）",
+        "admin_manager": "所属拠点の company_id と一致するブランチのみ可視",
+        "member": "所属拠点の company_id と一致するブランチのみ可視",
+        "note": "admin/manager が所属拠点未設定の場合は 0 件（暫定運用: 最低1拠点付与／将来 staffs.company_id 導入を検討）"
+      },
+      "impl": {
+        "branches_select": "USING ( public.fn_user_can_read_company(company_id) )",
+        "infinite_recursion_avoidance": "RLS 式で branches を再参照しない。判定は SECURITY DEFINER 関数で実施。"
+      }
+    },
+    "routes": {
+      "users": [
+        "user-list",
+        "user-detail",
+        "user-edit",
+        "user-new"
+      ],
+      "staffs": [
+        "staff-list",
+        "staff-detail",
+        "staff-edit",
+        "staff-new"
+      ]
+    },
+    "dev_rules": {
+      "schema_changes": {
+        "new_or_change": "MARGE",
+        "minor_fix": "UPDATE"
+      },
+      "fq_table_view": "当面利用しない（参照は fq.table() / fq.view()）"
+    },
+    "git_rules": {
+      "before_push": [
+        "git fetch origin",
+        "git rebase origin/main"
+      ]
+    },
+    "ai_interaction": {
+      "proposal": "canon.json に追記すべき差分案を必ず提示",
+      "user_role": "ユーザーがOKなら canon.json に反映・コミット",
+      "goal": "記録と実装のズレ最小化"
+    },
+    "canon_diff_flow": {
+      "morning_check": true,
+      "steps": [
+        "git switch main && git pull --ff-only",
+        "git diff / VS Code Timeline で差分精読",
+        "必要なら修正コミット prefix=canon:",
+        "レビュー完了タグ canon-reviewed-YYYY-MM-DD を push"
+      ]
+    },
+    "edge_functions": {
+      "admin-sync-auth": {
+        "verify_jwt": false,
+        "manual_check": [
+          "auth.getUser()",
+          "role=admin or manager"
+        ],
+        "reason": "CORS プリフライトは JWT を持たないため"
+      }
+    },
+    "history": [
+      {
+        "date": "2025-09-25",
+        "type": "MARGE",
+        "content": "care_logs に DEFAULT と NOT NULL を追加"
+      },
+      {
+        "date": "2025-09-25",
+        "type": "MARGE",
+        "content": "care_logs.user_id を ON DELETE SET NULL に変更、インデックス追加"
+      },
+      {
+        "date": "2025-09-25",
+        "type": "MARGE",
+        "content": "staff_branch_memberships / user_branch_memberships に外部キー制約と UNIQUE を正式仕様として明記"
+      },
+      {
+        "date": "2025-09-25",
+        "type": "UPDATE",
+        "content": "削除された利用者に紐づく過去ログは user_id=NULL で保持と明記"
+      },
+      {
+        "date": "2025-09-26",
+        "type": "UPDATE",
+        "content": "progress.json の扱いを運用ルールに正式追加"
+      },
+      {
+        "date": "2025-09-27",
+        "type": "MARGE",
+        "content": "RLS を SECURITY DEFINER 関数 public.fn_user_can_read_company(company_id) に集約。superadmin=全件、admin/manager=自社会社のみ、一般=自社会社のみ。branches の RLS 無限再帰を解消。"
+      }
+    ],
+    "ai_collaboration": {
+      "source_reference_rules": {
+        "description": "CARELOG-PUBLIC を基点に、AI が自律的に最新コードを参照するためのルール",
+        "manifest_file": "_chatgpt/manifest.json",
+        "bundle_files": [
+          "_chatgpt/summary/INDEX.md",
+          "_chatgpt/summary/**",
+          "CARELOG_SUMMARY.md (nightly only)"
+        ],
+        "raw_url_rule": "https://raw.githubusercontent.com/seig-o/CARELOG-PUBLIC/<commit>/<path>",
+        "assistant_must": [
+          "ユーザーが『bundleを参考に修正をアドバイスして』と指示した場合、まず _chatgpt/manifest.json を読み、対象ファイルの commit 固定 raw URL を解決する。",
+          "manifest に該当パスがあれば、その raw URL を用いて内容を参照し、修正提案を行う。",
+          "manifest に無い場合は、直近 push が反映されていない可能性を考慮して『push 済みか / CI の完了を待つ』確認を行う（ユーザーに URL 貼付を要求しない）。",
+          "CARELOG_SUMMARY.md は夜間スナップショットのため日中は差分サマリ（_chatgpt/summary/**）を優先参照する。"
+        ],
+        "assistant_must_not": [
+          "manifest.json が存在する状況で、ユーザーに毎回 raw URL の貼付を求めない。",
+          "bundle を参照したと宣言しながら、実際にはファイル本文を未確認のまま提案しない。"
+        ],
+        "fallback_flow": [
+          "manifest.json が見当たらない/壊れている → ユーザーに main へ再 push と CI 通過の確認を依頼する。",
+          "それでも不可の場合のみ、一時的に対象ファイルの raw URL をユーザーに依頼する。"
+        ]
+      }
+    }
+  }
+]
