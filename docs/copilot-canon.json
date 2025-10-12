@@ -1,0 +1,108 @@
+{
+  "copilot_canon": {
+    "version": "2025-10-06",
+    "source_of_truth": true,
+    "entries": [
+      {
+        "date": "2025-10-06T15:30:00+09:00",
+        "type": "DECISION",
+        "context": "AI連携対象ファイル定義",
+        "content": {
+          "summary": "CARELOG-PUBLICリポジトリ内の主要ファイル群をAIが設計・提案の前提として参照することを正式に決定。",
+          "decision": "CARELOG-PUBLICリポジトリ内の以下のファイル群をAIが設計・提案の前提として参照する",
+          "reason": "AIがVueコンポーネントやcontracts.tsの構造を把握し、整合性のある提案を行うため",
+          "files": [
+            "src/views/carelogs/CareLogDetail.vue",
+            "src/views/carelogs/CareLogUpsert.vue",
+            "src/lib/contracts.ts",
+            "src/lib/util.ts",
+            "src/router/index.ts",
+            "docs/CARELOG_SUMMARY.md"
+          ]
+        }
+      },
+      {
+        "date": "2025-10-06T14:00:00+09:00",
+        "type": "INIT",
+        "context": "CARELOG協業開始",
+        "content": {
+          "summary": "CARELOG開発における協業記録の唯一の正としてcopilot-canon.jsonを再生成。今後は日次追記運用とする。",
+          "agreements": [
+            "copilot-canon.jsonは人間とAIの協業記録の唯一の正（Source of Truth）とする",
+            "日次で追記を行い、Seigoが手動でGitHubに反映する",
+            "AIは日末に追記スニペットを生成し、Seigoが確認・採用する",
+            "carelog-canon.jsonはCARELOG仕様の履歴記録であり、copilot-canon.jsonは協業ルール・作業経過・合意事項の記録に特化する"
+          ],
+          "notes": [
+            "このファイルはGitHub上で手動管理され、AIは直接編集・保存は行わない",
+            "entries[]は日付順に積み上げ、type/context/contentを持つ構造とする"
+          ]
+        }
+      },
+      {
+        "date": "2025-10-02T23:59:00+09:00",
+        "type": "AGREEMENT",
+        "context": "ビルド環境とUI責務整理",
+        "content": {
+          "summary": "AppHeaderの責務分離、tsconfigのnoEmit設定、tailwindcss v3固定、Node.js v18採用などを合意。",
+          "agreements": [
+            "AppHeader はルートリンク用の軽量パーツとする。ビジネスロジックや supabase アクセスは持たせない",
+            "tsconfig で noEmit を設定し、src 配下に .js 出力されないようにする",
+            "tailwindcss は v3 を安定版として利用、v4 は様子見とする",
+            "build エラーは強引に通したため後日一つずつ原因を明確化する方針",
+            "Node.js は v18 LTS に固定してビルド安定性を確保する"
+          ]
+        }
+      },
+      {
+        "date": "2025-10-01T17:30:00+09:00",
+        "type": "AGREEMENT",
+        "context": "CARELOG-STAFF立ち上げ",
+        "content": {
+          "summary": "スタッフ専用フロントCARELOG-STAFFの立ち上げ方針と初期画面構成を合意。",
+          "agreements": [
+            "スタッフ専用フロント CARELOG-STAFF を立ち上げ、staff ロール向けに簡易CRUD機能を提供する方針",
+            "CARELOG-STAFF ではまずログイン/ログアウト → ホーム画面 → ケアログ一覧 → ケアログ投稿フォームの順で進める",
+            "Naive UI コンポーネントは unplugin-vue-components を利用し自動インポート可能とするが、暫定的に明示 import で進めてよい",
+            "今日の時点ではログイン画面から /home へリダイレクトし、HomeView でログアウトまで動作確認できた"
+          ]
+        }
+      },
+      {
+        "date": "2025-09-30T23:59:00+09:00",
+        "type": "UPDATE",
+        "context": "CareLogUpsert拡張とタグ保存不具合",
+        "content": {
+          "summary": "care_logsテーブルに拡張列を追加し、CareLogUpsertに段階的UI追加。タグ保存不具合の調査を開始。",
+          "done": [
+            "care_logsに拡張列を追加（vitals, meal, medication, toileting, mobility, mood, incident, attachments, next_actions, tags）",
+            "CareLogUpsertに拡張項目のUIを段階的に追加（バイタル→生活系→インシデント→タグ）",
+            "タグのIME対策UIとlib/util.ts（useImeGuard/pushUniqueTag）を導入"
+          ],
+          "pending": [
+            "タグがUI上は追加できるが保存されない事象の原因調査（明日着手）",
+            "CareLogUpsertの区切り（n-divider）配置や必須項目/バリデーション閾値の最終調整"
+          ]
+        }
+      },
+      {
+        "date": "2025-09-30T17:00:00+09:00",
+        "type": "AGREEMENT",
+        "context": "破壊的操作の禁止と承認ゲート",
+        "content": {
+          "summary": "companies.name誤更新インシデントを受け、破壊的操作の禁止と承認ゲート運用を合意。",
+          "agreements": [
+            "破壊的操作（UPDATE/DELETE）は直接提案しない。必ず直前SELECT→承認→実行→事後SELECTの順で進める",
+            "CRUD/RLS の検証は固定テスト会社（Z_TEST_CO_STEP）に限定する",
+            "companies の作成・更新・削除は superadmin のみに制限",
+            "フロントの会社系ルート/ナビは superadmin のみ表示・遷移可"
+          ],
+          "notes": [
+            "Supabase REST の 204 は成功の可能性あり。結果は必ず SELECT で検証する",
+            "RLS 変更は『一覧→DROP→作り直し』を標準手順に固定"
+          ]
+        }
+      }
+    ]
+  }
+}

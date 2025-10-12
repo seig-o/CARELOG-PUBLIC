@@ -1,0 +1,31 @@
+{
+  "title": "ChatGPT Review Bundle",
+  "always_include": [
+    "README.md",
+    "docs/carelog-canon.md"
+  ],
+  "include_globs": [
+    "src/**/*.ts",
+    "src/**/*.vue",
+    "src/**/*.tsx",
+    "src/**/*.jsx",
+    "docs/**/*.md"
+  ],
+  "exclude_globs": [
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/.github/workflows/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/coverage/**",
+    "**/.supabase/**",
+    "**/*.key",
+    "**/*.pem",
+    "**/*secret*",
+    "**/.env",
+    "**/.env.*"
+  ],
+  "max_files": 200,
+  "max_bytes_per_file": 200000,
+  "sort": "path"
+}

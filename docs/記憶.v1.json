@@ -1,0 +1,146 @@
+[
+  {
+    "2025-09-28": {
+      "added_at_iso": "2025-09-28T22:40:00+09:00",
+      "agreements": [
+        "AppHeader は UI 専任（ガードや認可判定は持たせない）",
+        "認証・認可の制御は router.beforeEach と auth ストアに一元化",
+        "共通日付変換は utils/date.ts に集約して全画面で使い回す"
+      ],
+      "frontend_changes": [
+        "UserUpsert/UserDetail から role を撤去し、実データ中心の表示に整理",
+        "StaffList の操作ボタンを安定化（detail/edit 遷移の不発を解消）",
+        "BranchDetail を新設し、拡張カラム（company_id/status）を表示",
+        "BranchUpsert に phone/address/note/status を追加、メタ（ID/作成・更新）を読み取り表示",
+        "Naive UI の不足コンポーネント（Descriptions/Empty/Spin/Popconfirm/Tag）を main.ts に登録"
+      ],
+      "db_changes": [
+        "branches.status を追加（DEFAULT 'active'）",
+        "（任意）既存行の status を 'active' に統一する UPDATE を提示",
+        "（任意）branches に phone/address/note の text 追加を許容"
+      ],
+      "routing": [
+        "branch-detail ルートを追加。ROUTE 契約に detail を明記して他エンティティと整合"
+      ],
+      "auth_ux": [
+        "AppHeader.logout は auth.logout() を呼ぶ。画面遷移は router.replace('login')",
+        "未認証・認可不足の遷移先は /login 統一（ガード側で実装）"
+      ],
+      "next_actions": [
+        "companies 一覧の件数差（2件 vs 実DB6件）の原因を superadmin ログインで切り分け（RLS/取得元）",
+        "CareLog/他画面で utils/date.ts を横展開し、日付ブレを根絶",
+        "BranchDetail に phone/address/note の表示も追補（Upsert に対応）"
+      ],
+      "notes": [
+        "Naive UI はグローバル登録不足が頻出要因。不足時は main.ts へ追記する運用で安定化",
+        "router ガードは return ベースで記述し、/login 特例を先置きするとチラつきが減る"
+      ]
+    }
+  },
+  {
+    "2025-09-27": {
+      "added_at_iso": "2025-09-27T23:59:00.000+09:00",
+      "agreements": [
+        "懸念や問題が指摘された場合は必ず作業を一旦停止し、原因明確化 → 抑制策の議論 → テスト の順で承認ゲート方式を適用する",
+        "AIは謝罪や推測を先行させず、まず事実整理を行う（順序：事実 → 原因 → 修正案 → テスト）。",
+        "唯一の正 (Source of Truth) は carelog-canon.json。canon.md は破棄済み。"
+      ],
+      "protocols": {
+        "stop_and_triage": {
+          "steps": [
+            "S0: STOP（懸念が出たら必ず停止）",
+            "S1: 事実収集（READ ONLYのみ）→ RLS/VIEW 定義の取得",
+            "G1: 承認ゲート（事実に基づく原因特定ができるまで提案禁止）",
+            "S2: 原因の文章化（因果を明文化、推測NG）",
+            "G2: 承認ゲート（原因説明OKか）",
+            "S3: 最小修正案（Idempotent/Rollback明記、まだ実施しない）",
+            "G3: 承認ゲート（実施OKが出るまで非実行）",
+            "S4: テスト（HTTP/DB/フロントの合否条件を先出し）",
+            "G4: 承認ゲート（合格でクローズ、未達ならS1へ戻る）",
+            "S5: 記録（事象/原因/修正/テスト/影響範囲を短く一枚化）"
+          ],
+          "sql_detection_snippets": {
+            "rls_policies_expand": "select\n  n.nspname        as schemaname,\n  c.relname        as tablename,\n  p.polname        as policyname,\n  p.polcmd         as cmd,\n  pg_get_expr(p.polqual,       c.oid) as using_expr,\n  pg_get_expr(p.polwithcheck,  c.oid) as with_check_expr\nfrom pg_policy p\njoin pg_class  c on c.oid = p.polrelid\njoin pg_namespace n on n.oid = c.relnamespace\nwhere n.nspname = 'public'\n  and c.relname in ('users','staffs','branches','care_logs')\norder by tablename, policyname;",
+            "rls_policies_with_care_only": "with pol as (\n  select\n    n.nspname as schemaname,\n    c.relname as tablename,\n    p.polname as policyname,\n    p.polcmd  as cmd,\n    pg_get_expr(p.polqual,      c.oid) as using_expr,\n    pg_get_expr(p.polwithcheck, c.oid) as with_check_expr\n  from pg_policy p\n  join pg_class  c on c.oid = p.polrelid\n  join pg_namespace n on n.oid = c.relnamespace\n  where n.nspname='public'\n    and c.relname in ('users','staffs','branches','care_logs')\n)\nselect *\nfrom pol\nwhere coalesce(using_expr, '') ilike '%care.%'\n   or coalesce(with_check_expr, '') ilike '%care.%'\norder by tablename, policyname;",
+            "views_with_care": "select\n  n.nspname as schema,\n  c.relname as view_name,\n  pg_get_viewdef(c.oid, true) as view_def\nfrom pg_class c\njoin pg_namespace n on n.oid = c.relnamespace\nwhere n.nspname = 'public'\n  and c.relkind in ('v','m')\n  and pg_get_viewdef(c.oid, true) ilike '%care.%'\norder by view_name;"
+          }
+        }
+      },
+      "db_changes": [
+        "SECURITY DEFINER 関数 public.fn_user_can_read_company(company_id uuid) を作成（company 可視判定を関数へ集約）",
+        "branches の RLS を USING(public.fn_user_can_read_company(company_id)) に置換し、無限再帰（42P17）を解消",
+        "可視範囲を定義：superadmin=全件、admin/manager=自社会社のみ、一般=自社会社のみ",
+        "（暫定）admin/manager が所属拠点未設定の場合は 0 件になるため、最低1拠点の所属付与を運用で担保（将来 staffs.company_id を検討）"
+      ],
+      "frontend_changes": [
+        "main.ts に Naive UI の NSpace / NLayout / NLayoutHeader を追加登録し、BranchList の解決エラーを解消",
+        "AppHeader.vue のリンク name を care-log-*（ハイフン版）に統一"
+      ],
+      "tests": [
+        "REST: GET /rest/v1/branches?select=id,name → 200 / ロールに応じた件数を返すこと",
+        "UI: BranchList.vue にて拠点一覧が表示されること（superadmin=全件、admin/manager/一般=自社会社のみ）"
+      ],
+      "decisions": [
+        "全件可は superadmin のみ。admin/manager と一般は自社会社のみ可視（canon へ反映）。"
+      ],
+      "next_actions": [
+        "同パターンを staffs / users / memberships 系の RLS に段階適用（関数化で再帰回避）",
+        "admin の『所属拠点なし』ケースに備え、staffs.company_id の導入可否を検討"
+      ],
+      "notes": [
+        "RLS の USING 式から branches 自参照を排除し、再帰を関数境界で遮断した。",
+        "関数は SECURITY DEFINER + table owner 実行のため、内部結合しても RLS 再起に陥らない。"
+      ]
+    }
+  },
+  {
+    "2025-09-26": {
+      "db_changes": [
+        "care スキーマを廃止して public に統一",
+        "care_logs テーブルを public に移設",
+        "v_care_logs ビューを public に作成",
+        "ダミーデータを care_logs に 10 件挿入",
+        "user_id / staff_id を実在の UUID に紐付け"
+      ],
+      "frontend_changes": [
+        "router/index.ts の認証ガードを Supabase v2 仕様に修正（getSession / getUser ベース）",
+        "NavigationGuardNext の import を削除（Vue Router v4 対応）",
+        "main.ts の Auth 初期化を Supabase v2 ＋ Pinia store に変更（onAuthStateChange 監視）",
+        "auth.ts に setSession() を追加してストア管理（user と staffs の突き合わせ）",
+        "App.vue に Naive UI の Provider（n-config-provider / n-dialog-provider / n-message-provider）を追加",
+        "LoginView.vue を Naive UI でカード化・中央寄せ（幅をコンパクト化、フォームを n-form/n-input/n-button に置換）",
+        "contracts.ts を『public 一元化』前提に修正（SCHEMA を public、fq.* を public 既定、FQ_* 更新）",
+        "CareLogList.vue を public.v_care_logs 参照に修正して表示復旧"
+      ],
+      "issues": [
+        "Supabase v2: auth.setSession の存在を前提にした古い呼び出しが残っていた → ストア側 setSession に置換で収束",
+        "AppHeader.vue: セッション未初期化時に undefined.length を参照しうる箇所 → null セーフ必要（未対処部分あり）",
+        "Naive UI: Provider をグローバル登録しないと useMessage 等でエラー → App.vue/main.ts で解決",
+        "public 一元化に伴う他 CRUD 画面（users/staffs 等）で未修正参照が残っている可能性（未確認分あり）"
+      ],
+      "infra_changes": [
+        "GitHub Actions: summary-and-mirror.yml を作成し、push 時に _chatgpt/summary/* と _chatgpt/manifest.json を生成",
+        "夜間スケジュール時のみ CARELOG_SUMMARY.md（フルスナップショット）を生成",
+        "CARELOG → CARELOG-PUBLIC のミラー（スナップショット、履歴なし）を安定化",
+        "push 前運用ルール: rebase origin/main を徹底。競合時は CARELOG_SUMMARY.md は theirs を採用"
+      ],
+      "next_steps": [
+        "public 一元化の影響で落ちている他ページ（users/staffs/branches など）の参照修正を最優先で一掃",
+        "AppHeader.vue の company セレクタ維持のまま、責務分離（認証系は store / ルータへ）と null セーフを追加",
+        "LoginView の UI を微調整（さらに余白・幅を最適化、アクセシビリティ属性の付与）",
+        "contracts.ts の参照を全画面で統一（直書き from('xxx') を廃止して fq.table()/FQ_* へ）",
+        "Naive UI のグローバル導入を前提とした個別 import の整理（重複排除）",
+        "CRUD 画面のエラー監視（コンソール）を確認しながら順次ホットフィックス"
+      ],
+      "decisions": [
+        "目的は『care → public 一本化』のみ。余計な仕様提案は抑制し、まず“動く状態”へ最短復旧を最優先。",
+        "疑義がある提案は**必ず意図を確認**してから提示する（勝手に広げない）。",
+        "bundle/manifest の運用で、AI は必ず公開 raw を参照（ユーザーに毎回コピペを求めない）。"
+      ],
+      "notes": [
+        "Login の中央寄せは CSS で暫定対応済み。Naive UI のカードで置換して見た目を改善。",
+        "CareLogList は表示復旧。見た目（列・フィルタ等）の Naive UI 化は後続で対応。"
+      ]
+    }
+  }
+]

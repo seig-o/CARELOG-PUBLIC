@@ -1,0 +1,84 @@
+@charset "UTF-8";
+@import "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -------------------------------------------------------
+// # Color scheme
+// ------------------------------------------------------*/
+:root {}
+
+
+/* -------------------------------------------------------
+// # Typography
+// ------------------------------------------------------*/
+html {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* -------------------------------------------------------
+// # Common
+// ------------------------------------------------------*/
+
+
+/* -------------------------------------------------------
+// # Skeltone
+// ------------------------------------------------------*/
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+/* -------------------------------------------------------
+// # nav
+// ------------------------------------------------------*/
+nav ul {
+  display: flex;
+  gap: 1rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* -------------------------------------------------------
+// # Login
+// ------------------------------------------------------*/
+.page-login .n-card {
+  width: 400px;
+  border: 1px solid #ddd;
+  box-shadow: 0 0 4px rgba(0,0,0,0.2);
+  position: relative;
+  top: -15vh;
+}
+#logintitle {
+  display: flex;
+  align-items: end;
+  justify-content: center;
+}
+#logintitle img {
+  width: 150px;
+  height: auto;
+  display: block;
+}
+#logintitle span {
+  font-weight: bold;
+  font-size: 20px;
+}
+
+/* -------------------------------------------------------
+// # 
+// ------------------------------------------------------*/
+
+
+/* -------------------------------------------------------
+// # 
+// ------------------------------------------------------*/
+
+
